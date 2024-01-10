@@ -1,0 +1,41 @@
+{
+    "Service":{
+        "instance": {
+            "title": "Demo_App",
+            "description": "Sample application for AosEdge demo"
+        },
+        "meta": {
+            "publisher": {
+                "author": "Long Truong",
+                "company": "Renesas Design VietNam"
+            },
+            "build": {
+                "os": "linux",
+                "arch": "x86",
+                "sign_pkcs12": "aos-user-sp.p12",
+                "symlinks": "copy"
+            },
+            "publish": {
+                "url": "aoscloud.io",
+                "service_uid": "",
+                "tls_pkcs12": "aos-user-sp.p12",
+                "version": "1.0.0"
+            },
+            "configuration": {
+                "state": {
+                    "filename": "state.dat",
+                    "required": false
+                },
+                "cmd": "python3 -u dummy_sensor.py",
+                "isResourceLimits": false,
+                "runner": "crun",
+                "workingDir": "/"
+            }
+        }
+    },
+    "Subject": {
+        "label": "Test-App",
+        "priority": 0,
+        "is_group": true
+    }
+}
