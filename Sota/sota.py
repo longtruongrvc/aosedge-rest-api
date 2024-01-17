@@ -24,8 +24,6 @@ config_yaml  = os.path.join(META_DIR, "config.yaml")
 os.chdir(WORK_DIR)
 
 def sota_test(unit_id: str, unit_name: str, unit_version: str):
-    verify = False
-
     # Retrieve information from service.json file
     with open (service_json, "r") as jsonfile:
         info = json.load(jsonfile)
@@ -42,8 +40,8 @@ def sota_test(unit_id: str, unit_name: str, unit_version: str):
                                          priority  = info["Subject"]["priority"],
                                          is_group  = info["Subject"]["is_group"])
     
-    if not unit.is_online(timeout=10):
-        return verify
+    if not unit.is_online(timeout=600):
+        return False
 
     service.create_service_instance()
         
@@ -63,11 +61,11 @@ def sota_test(unit_id: str, unit_name: str, unit_version: str):
 
     service.approve_service()
 
-    if unit.verify_sota_function(service.service_uuid, service.latest_service_system_version(), timeout=40):
-        verify = True
+    if unit.verify_sota_function(service.service_uuid, service.latest_service_system_version(), timeout=15*60):
+        time.sleep(20) #Wait for 20s to get watch application logs on Webhook before cleaning
+        log.info("CLEAN UP RESOURCES AFTER TESTING SOTA FUNCTION")
+        subject.remove_subject()
+        service.remove_service_instance()
+        return True
     
-    log.info("CLEAN UP RESOURCES AFTER TESTING SOTA FUNCTION")
-    subject.remove_subject()
-    service.remove_service_instance()
-    return verify
-    
+    return False

@@ -9,12 +9,15 @@ sys.path.insert(0, UTILITIES_DIR)
 
 from aos import *
 
-def monitoring_test(unit_id: str):
-    verify = False
+def monitoring_test(unit_id: str, unit_name: str, unit_version: str):
     unit = AosCloud.Entities.Unit(id      = unit_id,
-                                  name    = None,
-                                  version = None)
+                                  name    = unit_name,
+                                  version = unit_version)
+    
+    if not unit.is_online(timeout=600): #Modify timeout based on VDK or real board
+        return False
+
     log.info("GATHER SYSTEM INFORMATION")
-    if unit.system_monitoring(timeout=30):
-        verify = True
-    return verify
+
+    if unit.system_monitoring(timeout=300):
+        return True

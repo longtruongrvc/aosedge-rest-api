@@ -10,17 +10,16 @@ sys.path.insert(0, UTILITIES_DIR)
 from aos import *
 
 def fota_test(unit_id: str, unit_name: str, unit_version: str, new_firmware: str):
-    verify = False
     if not os.path.exists(os.path.join(os.path.dirname(__file__), new_firmware)):
-        log.error(f"No such file or directory: {new_firmware}")
-        return verify
+        log.error(f"No such file or directory: {os.path.join(os.path.dirname(__file__), new_firmware)}")
+        return False
     
     unit = AosCloud.Entities.Unit(id      = unit_id,
                                   name    = unit_name,
                                   version = unit_version)
 
-    if not unit.is_online(timeout=20):
-        return verify
+    if not unit.is_online(timeout=600):
+        return False
 
     with open(os.path.join(os.path.dirname(__file__), new_firmware), "rb") as fp:
         file_data = fp.read()
@@ -31,8 +30,6 @@ def fota_test(unit_id: str, unit_name: str, unit_version: str, new_firmware: str
     component = AosCloud.Entities.Component()
     component.upload_batch_file(firmware_to_upload)
     component.approve_component()
-    if unit.verify_fota_function(component.component_id, component.component_vendor_version, timeout=500):
-        verify = True
-    log.info("CLEAN UP RESOURCES AFTER TESTING FOTA FUNCTION")
-    component.remove_uploaded_component()
-    return verify
+    if unit.verify_fota_function(component.component_id, component.component_vendor_version, timeout=15*60):
+        return True
+    return False

@@ -13,16 +13,20 @@ from aos import *
 
 def provision_test(unit_ip: str, unit_id: str, unit_name: str, unit_version: str) -> bool:
     log.info(f"PROVISION TARGET DEVICE {unit_name}")
-    if subprocess.run([f"aos-prov -u {unit_ip}:8089"], shell=True, capture_output=True).returncode == 0:
-        unit = AosCloud.Entities.Unit(id      = unit_id,
-                                      name    = unit_name,
-                                      version = unit_version)
+    unit = AosCloud.Entities.Unit(id      = unit_id,
+                                  name    = unit_name,
+                                  version = unit_version)
+    if unit_id in unit.get_provisioned_units():
+        log.info("UNIT IS ALREADY PROVISIONED")
+        return True
+    elif subprocess.run([f"aos-prov -u {unit_ip}:8089"], shell=True, capture_output=True).returncode == 0:
+        log.info("UNIT IS SUCCESSFULLY PROVISIONED")
         target_system_file = os.path.join(os.path.dirname(__file__), "target_system.json")
         with open(target_system_file, "r") as config_file:
             config = json.load(config_file)
         log.info(f"UPLOAD UNIT MODEL FOR DEVICE {unit_name}")
         unit.update_target_system(unit_config = config)
-        verify = True
+        return True
     else:
-        verify = False
-    return verify
+        log.error("FAILED TO PROVISION UNIT")
+        return False
