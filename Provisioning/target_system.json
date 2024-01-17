@@ -1,21 +1,27 @@
 {
-    "resources": [
-      {
-        "name": "vis",
-        "hosts": [
-          {
-            "ip": "172.17.0.1",
-            "hostname": "wwwivi"
-          }
-        ]
-      }
-    ],
-    "components": [
-      {
-        "id": "rcar-s4-spider-1.0-dom0"
-      },
-      {
-        "id": "rcar-s4-spider-1.0-domd"
-      }
-    ]
-  }
+  "nodes": [
+    {
+      "nodeType": "x5h-1.0-node0",
+      "priority": 100
+    }
+  ],
+  "resources": [
+    {
+      "name": "vis",
+      "hosts": [
+        {
+          "ip": "172.17.0.1",
+          "hostname": "wwwivi"
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "x5h-1.0-node0-boot"
+    },
+    {
+      "id": "x5h-1.0-node0-rootfs"
+    }
+  ]
+}
