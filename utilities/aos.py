@@ -131,8 +131,8 @@ class AosCloud():
                     "description": self.service_description,
                     "default_quotas": {
                         "cpu_limit": 51,
-                        "memory_limit": 10000,
-                        "storage_disk_limit": 10000
+                        "memory_limit": 20000,
+                        "storage_disk_limit": 5000
                     }
                 }
                 # sv_name = list()
@@ -417,6 +417,13 @@ class AosCloud():
                 self.unit_name = name
                 self.unit_version = version
                 self.unit_id = None #Unique integer value identifying the unit (different from system_id)
+            
+            def get_provisioned_units(self) -> list:
+                aos_request = AosCloud.Request(url = "https://oem.aoscloud.io:10000/api/v1/units/",
+                                               role = "oem")
+                response = aos_request.get().json()
+                unit_list = [d["system_uid"] for d in response["results"]]
+                return unit_list
 
             def get_unit_id(self, unit_system_id) -> int:
                 """
@@ -461,7 +468,8 @@ class AosCloud():
                 start_time = time.time()
                 while not (online := aos_request.get().json()["is_online"]):
                     if time.time() - start_time > timeout:
-                        SystemExit("UNIT IS OFFLINE")
+                        log.error("UNIT IS OFFLINE")
+                        return False
                 return True
 
             def system_monitoring(self, timeout):
@@ -470,17 +478,15 @@ class AosCloud():
                 start_time = time.time()
                 while True:
                     response = aos_request.get().json()
-                    verify = False if not response[0] else True
-                    if verify:
+                    if response[0]:
                         time.sleep(10) #Wait around 10s to get full information from unit
                         cpu_val, ram_val, used_disk_val, in_traffic_val, out_traffic_val = [
                             (d["cpu"][0]["value"], d["ram"][0]["value"], d["usedDisk"][0]["value"], d["inTraffic"][0]["value"], d["outTraffic"][0]["value"])
                             for d in response][0]
                         print(f"cpu used: {cpu_val}\nram used: {ram_val}\ndisk used: {used_disk_val}\nin-traffic network: {in_traffic_val}\nout-traffic network: {out_traffic_val}")
-                        break
-                    if (time.time() - start_time > timeout):
-                        break
-                return verify
+                        return True
+                    elif (time.time() - start_time > timeout):
+                        return False
 
             def verify_sota_function(self, service_uuid, service_latest_system_version, timeout) -> bool:
                 """
@@ -497,13 +503,14 @@ class AosCloud():
                                                role = "oem")
                 start_time = time.time()
                 while True:
-                    time.sleep(10)
                     response = aos_request.get().json()
-                    aos_version, run_state = [(d["instances"][0]["aos_version"], d["instances"][0]["run_state"]) for d in response["results"] if d["service"]["uuid"] == service_uuid][0]
-                    verify = True if aos_version == service_latest_system_version and run_state == "active" else False
-                    if (time.time() - start_time > timeout) or verify:
-                        break                    
-                return verify
+                    instance_list = [d["instances"] for d in response["results"] if d["service"]["uuid"] == service_uuid]
+                    if instance_list[0]:
+                        (aos_version, run_state), *others = [(d[0]["aos_version"], d[0]["run_state"]) for d in instance_list]
+                        if aos_version == service_latest_system_version and run_state == "active":
+                            return True
+                    elif (time.time() - start_time > timeout):
+                        return False                    
                 
             def verify_fota_function(self, uploaded_component_id, uploaded_component_version, timeout) -> bool:
                 """
@@ -513,18 +520,21 @@ class AosCloud():
                 self.unit_id = self.get_unit_id(self.unit_system_id)
                 aos_request = AosCloud.Request(url = f"https://oem.aoscloud.io:10000/api/v1/units/{self.unit_id}/",
                                                role = "oem")
-                log.info("UPDATE NEW KERNEL IMAGE. PLEASE CHECK THE DEVICE AND REBOOT MANUALLY")
-                start_time = time.time()
-                while True:
-                    time.sleep(10)            
-                    response = aos_request.get().json()
-                    current_vendor_version = [d["installed_component"]["vendor_version"] for d in response["unit_update_components"] if d["component_id"] == uploaded_component_id]
-                    if not current_vendor_version or current_vendor_version[0] != uploaded_component_version:
-                        return False
-                    elif (time.time() - start_time > timeout):
-                        return False
-                    elif current_vendor_version == uploaded_component_version:
-                        return True
+                response = aos_request.get().json()
+                current_vendor_version = [d["installed_component"]["vendor_version"] for d in response["unit_update_components"] if d["component_id"] == uploaded_component_id]
+                if current_vendor_version and current_vendor_version[0] == uploaded_component_version:
+                    log.info("FIRMWARE IS ALREADY UPDATED")
+                    return True
+                else: 
+                    log.info("UPDATE NEW KERNEL IMAGE. PLEASE CHECK THE DEVICE AND REBOOT MANUALLY")
+                    start_time = time.time()
+                    while True:
+                        response = aos_request.get().json()
+                        current_vendor_version = [d["installed_component"]["vendor_version"] for d in response["unit_update_components"] if d["component_id"] == uploaded_component_id]
+                        if (time.time() - start_time > timeout):
+                            return False
+                        elif current_vendor_version and current_vendor_version[0] == uploaded_component_version:
+                            return True
 
         class Component():
             def __init__(self):
@@ -580,9 +590,9 @@ class AosCloud():
                                                role = "oem")
                 response = aos_request.get().json()
                 component_upload_id = [d["id"] for d in response["results"] if 
-                                            d["component_id"] == self.component_id and
-                                            d["vendor_version"] == self.component_vendor_version and
-                                            d["state"] == "Ready"][0]
+                                        d["component_id"] == self.component_id and
+                                        d["vendor_version"] == self.component_vendor_version and
+                                        d["state"] == "Ready"][0]
                 return component_upload_id
 
             def remove_uploaded_component(self):
